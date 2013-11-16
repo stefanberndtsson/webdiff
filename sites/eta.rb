@@ -45,6 +45,59 @@ module WebDiff
           @status = status
           @updated_at = timestamp
         end
+
+        def state_change
+          state = {}
+          return state if @previous_data.empty?
+          prev = @previous_data.last
+          state[:image] = state_change_element(prev, to_hash, :image)
+          state[:thumbnail] = state_change_element(prev, to_hash, :thumbnail)
+          state[:name] = state_change_element(prev, to_hash, :name)
+          state[:status] = state_change_element(prev, to_hash, :status)
+          state
+        end
+
+        def state_change_element(prev, current, element)
+          if prev[element] != current[element]
+            return {
+              old: prev[element],
+              new: current[element]
+            }
+          end
+          return nil
+        end
+
+        def mailer_template_new
+          ""+
+            "<div>"+
+            "  <span class='id'><strong>#{@id}</strong></span>"+
+            "  <span class='image'><a href='#{@image}'><img src='#{@thumbnail}'/></a></span>"+
+            "  <span class='name'>#{@name}</span>"+
+            "  <span class='status'><em>[#{@status}]</em></span>"+
+            "</div>"
+        end
+
+        def mailer_template_update(state)
+          rows = []
+          rows << "<div>"
+          rows << "<span class='id'><strong>#{@id}</strong></span>"
+          rows << "<span class='image'><a href='#{@image}'><img src='#{@thumbnail}'/></a></span>"
+          if state[:name]
+            rows << "<span class='name' style='background-color: #f99'><del>#{state[:name][:old]}</del></span>"
+          end
+          rows << "<span class='name'>#{@name}</span>"
+          if state[:status]
+            rows << "  <span class='status' style='background-color: #f99'><del><em>[#{state[:status][:old]}]</em></del></span>"
+          end
+          rows << "  <span class='status'><em>[#{@status}]</em></span>"
+          rows << "</div>"
+          rows.join("\n")
+        end
+
+        def mailer_template
+          state = state_change
+          state.keys.empty? ? mailer_template_new : mailer_template_update(state)
+        end
       end
 
       def initialize(filename = nil)
@@ -76,13 +129,14 @@ module WebDiff
           thumbnail = BASEURL+trow.search('td.list_ls_picitm img').attr('src').value
           image = BASEURL+trow.search('td.list_ls_picitm a').attr('href').value
           name = trow.search('td.list_ls_nameitm').text
-          status = trow.search('td.list_ls_statusitm').text
+          status = trow.search('td.list_ls_statsitm').text
           create_or_update_item(id, thumbnail, image, name, status)
         end
       end
 
       def report
-        pp @new_or_updated_items.map {|x| x.id }
+        return if @new_or_updated_items.size == 0
+        WebDiff::Mailer.new("ETA: #{@new_or_updated_items.size} new or updated item(s)", @new_or_updated_items)
       end
 
       def create_or_update_item(id, thumbnail, image, name, status)
