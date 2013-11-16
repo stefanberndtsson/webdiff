@@ -18,14 +18,21 @@ module WebDiff
         delivery_method :smtp, address: config["smtp"], port: 25, enable_starttls_auto: false
       end
 
-      mail = Mail.deliver do
-        to config["receiver"]
-        from config["sender"]
-        subject message_subject
+      receiver = config["receiver"]
+      if !receiver.is_a?(Array)
+        receiver = [receiver]
+      end
 
-        html_part do
-          content_type 'text/html; charset=UTF-8'
-          body message_body.join("\n")
+      receiver.each do |recv|
+        mail = Mail.deliver do
+          to recv
+          from config["sender"]
+          subject message_subject
+
+          html_part do
+            content_type 'text/html; charset=UTF-8'
+            body message_body.join("\n")
+          end
         end
       end
     end
