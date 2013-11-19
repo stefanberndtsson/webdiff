@@ -6,3 +6,4 @@ end
 
 $: << "."
 require 'sites/eta.rb'
+require 'sites/hackaday.rb'
